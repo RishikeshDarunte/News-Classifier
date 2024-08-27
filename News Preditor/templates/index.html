@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>News Classifier</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', Serif;
+            background: linear-gradient(135deg, #71b7e6, #9b59b6);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            color: #333;
+            animation: slideIn 1s ease-in-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        form {
+            margin-bottom: 20px;
+            animation: fadeIn 1.5s ease-in-out;
+        }
+
+        textarea {
+            width: 90%;
+            height: 100px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 16px;
+            resize: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s ease;
+        }
+
+        textarea:focus {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            outline: none;
+        }
+
+        input[type="submit"] {
+            background: #9b59b6;
+            border: none;
+            padding: 12px 20px;
+            color: #fff;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #8e44ad;
+            transform: translateY(-3px);
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 22px;
+            color: #2c3e50;
+            animation: popUp 0.5s ease-in-out;
+        }
+
+        @keyframes popUp {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .button-group {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-around;
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        .button-group button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        #correctButton {
+            background: #2ecc71;
+        }
+
+        #correctButton:hover {
+            background: #27ae60;
+            transform: translateY(-3px);
+        }
+
+        #wrongButton {
+            background: #e74c3c;
+        }
+
+        #wrongButton:hover {
+            background: #c0392b;
+            transform: translateY(-3px);
+        }
+
+        #historyToggle {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #historyToggle:hover {
+            background-color: #2980b9;
+            transform: translateY(-3px);
+        }
+
+        h2 {
+            margin-top: 20px;
+            font-size: 1.8em;
+            color: #333;
+            animation: slideIn 1.5s ease-in-out;
+        }
+
+        #history {
+            margin-top: 20px;
+            text-align: left;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none; /* Initially hidden */
+            animation: fadeIn 2.5s ease-in-out;
+        }
+
+        .history-entry {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: #f4f4f4;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .history-entry:hover {
+            background-color: #ddd;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>News Classifier</h1>
+        <form id="newsForm" action="/predict" method="POST">
+            <textarea id="newsText" name="text" placeholder="Enter a news article..."></textarea><br>
+            <input type="submit" value="Predict">
+        </form>
+        <div id="result"></div>
+        <div class="button-group">
+            <button id="correctButton" style="display: none;">Correct</button>
+            <button id="wrongButton" style="display: none;">Wrong</button>
+        </div>
+        <button id="historyToggle">Show History</button>
+        <div id="history"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            let history = [];
+
+            function updateHistory(text, prediction) {
+                history.push({ text: text, prediction: prediction });
+                if (history.length > 5) {
+                    history.shift();  // Keep only the last 5 entries
+                }
+                renderHistory();
+            }
+
+            function renderHistory() {
+                $('#history').empty();
+                history.forEach(entry => {
+                    let historyEntry = $('<div>').addClass('history-entry');
+                    historyEntry.text(entry.text);
+                    historyEntry.click(function() {
+                        $('#newsText').val(entry.text);
+                    });
+                    $('#history').append(historyEntry);
+                });
+            }
+
+            $('#newsForm').submit(function(e){
+                e.preventDefault();
+                $.ajax({
+                    type: 'POST',
+                    url: '/predict',
+                    data: $(this).serialize(),
+                    success: function(response){
+                        $('#result').text(response.prediction);
+                        $('#correctButton').show();
+                        $('#wrongButton').show();
+                        updateHistory($('#newsText').val(), response.prediction);
+                    },
+                    error: function(error){
+                        console.log(error);
+                    }
+                });
+            });
+
+            $('#correctButton').click(function(){
+                $.ajax({
+                    type: 'POST',
+                    url: '/feedback',
+                    data: { text: $('#newsText').val(), feedback: 'correct' },
+                    success: function(response){
+                        alert('Thank you for your feedback!');
+                    },
+                    error: function(error){
+                        console.log(error);
+                    }
+                });
+                $('#correctButton').hide();
+                $('#wrongButton').hide();
+            });
+
+            $('#wrongButton').click(function(){
+                $.ajax({
+                    type: 'POST',
+                    url: '/feedback',
+                    data: { text: $('#newsText').val(), feedback: 'wrong' },
+                    success: function(response){
+                        alert('Thank you for your feedback! The model has been updated.');
+                    },
+                    error: function(error){
+                        console.log(error);
+                    }
+                });
+                $('#correctButton').hide();
+                $('#wrongButton').hide();
+            });
+
+            $('#historyToggle').click(function(){
+                $('#history').toggle(300);  // Smooth toggle for history display
+                $(this).text($(this).text() === 'Show History' ? 'Hide History' : 'Show History');
+            });
+        });
+    </script>
+</body>
+</html>
